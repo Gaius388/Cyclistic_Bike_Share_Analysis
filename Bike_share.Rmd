@@ -1,6 +1,6 @@
 ---
 title: "Cyclistic: How Does A Bike-share Navigate Speedy Success "
-author: "Olawale"
+author: "Olawale Adigun"
 date: "3/24/2022"
 output: html_document
 ---
