@@ -1,0 +1,128 @@
+---
+title: "Cyclistic: How Does A Bike-share Navigate Speedy Success "
+author: "Olawale"
+date: "3/24/2022"
+output: html_document
+---
+Load the appropriate packages which have been previously installed 
+```{r}
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+Then load the previous 12 months of Cyclistic trip data
+```{r}
+y2021_03 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202103-divvy-tripdata.csv")
+y2021_04 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202104-divvy-tripdata.csv")
+y2021_05 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202105-divvy-tripdata.csv")
+y2021_06 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202106-divvy-tripdata.csv")
+y2021_07 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202107-divvy-tripdata.csv")
+y2021_08 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202108-divvy-tripdata.csv")
+y2021_09 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202109-divvy-tripdata.csv")
+y2021_10 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202110-divvy-tripdata.csv")
+y2021_11 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202111-divvy-tripdata.csv")
+y2021_12 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202112-divvy-tripdata.csv")
+y2022_01 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202201-divvy-tripdata.csv")
+y2022_02 <- read.csv("C:/Users/lenovo/Desktop/12_months_of_Cyclistic/202202-divvy-tripdata.csv")
+```
+Check the structure of some of the 12 datasets pre-loaded for uniformity
+```{r}
+str(y2021_03)
+str(y2021_04)
+str(y2021_09)
+str(y2022_02)
+```
+Then bind all 12 datasets into one for analysis
+```{r}
+all_trips <- bind_rows(y2021_03, y2021_04,y2021_05, y2021_06, y2021_07, y2021_08,y2021_09, y2021_10, y2021_11, y2021_12,y2022_01,y2022_02)
+```
+Then format the new dataset to pepare it for analysis
+```{r}
+all_trips <- mutate(all_trips, ride_id = as.character(ride_id), rideable_type = as.character(rideable_type))
+all_trips <- all_trips %>% 
+  select(-c(start_lat, start_lng, end_lat, end_lng))
+all_trips$date <- as.Date(all_trips$started_at)
+all_trips$day_of_week <- format(as.Date(all_trips$date),"%A")
+all_trips$ride_length <- difftime(all_trips$ended_at,all_trips$started_at)
+all_trips$ride_length <- as.numeric(as.character(all_trips$ride_length))
+is.numeric(all_trips$ride_length)
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+```
+Analysis was then carried out on the to reveal any insights
+```{r}
+all_trips_v2 <- all_trips[!(all_trips$start_station_name == "HQ QR" | all_trips$ride_length<0),]
+mean(all_trips_v2$ride_length)
+median(all_trips_v2$ride_length)
+max(all_trips_v2$ride_length)
+min(all_trips_v2$ride_length)
+summary(all_trips_v2$ride_length)
+aggregate(all_trips_v2$ride_length~all_trips_v2$member_casual, FUN = mean)
+aggregate(all_trips_v2$ride_length~all_trips_v2$member_casual, FUN = median)
+aggregate(all_trips_v2$ride_length~all_trips_v2$member_casual, FUN = max)
+aggregate(all_trips_v2$ride_length~all_trips_v2$member_casual, FUN = min)
+aggregate(all_trips_v2$ride_length~all_trips_v2$member_casual + all_trips_v2$day_of_week, FUN = mean)
+all_trips_v2$day_of_week <- ordered(all_trips_v2$day_of_week, levels=c("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"))
+all_trips_v2 %>% 
+  mutate(weekday=wday(started_at,label = TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(number_of_rides=n(), average_duration = mean(ride_length)) %>%  
+  arrange(member_casual, weekday)
+```
+With the results gotten, visualizations were thus created
+```{r}
+all_trips_v3 <- all_trips_v2 %>% 
+  mutate(weekday=wday(started_at,label = TRUE)) %>% 
+  group_by(member_casual,weekday) %>% 
+  summarise(number_of_rides=n(), average_duration = mean(ride_length)) %>%  
+  arrange(member_casual, weekday)
+```
+```{r}
+ggplot(data = all_trips_v3) + geom_col(mapping = aes(x = weekday, y = average_duration, fill = member_casual)) + 
+  labs(title = "Ride Length for members and casual riders each day", 
+       x = "Days of The Week", y = "Average Duration")
+
+```
+
+```{r}
+ggplot(data = all_trips_v2) + geom_bar(mapping = aes(x = member_casual, fill = member_casual)) + scale_y_continuous(labels = scales::comma) + 
+  labs(title = "Number of trips for members and casual riders", 
+       x = "Type of Riders", y = "Number of trips")
+
+```
+
+```{r}
+ggplot(data = all_trips_v3, aes(x = weekday, y = number_of_rides, fill = member_casual )) + geom_col(position = "dodge") + scale_y_continuous(labels = scales::comma) + 
+  labs(title = "Number of trips for each day of the week", 
+       x = "Days of the Week", y = "Number of trips")
+
+```
+
+```{r}
+all_trips_v2 %>% 
+  mutate(month = month(started_at,label = TRUE)) %>% 
+  group_by(member_casual, month) %>% 
+  summarise(number_of_rides=n(), average_duration = mean(ride_length)) %>%  
+  arrange(member_casual, month) %>% 
+  ggplot(aes(x = month, y = number_of_rides, fill = member_casual)) + geom_col(position = "dodge") + scale_y_continuous(labels = scales::comma) +
+  labs(title = "Number of trips taken monthly by members and casual riders", 
+       x = "Months of the Year", y = "Number of rides")
+```
+
+```{r}
+ggplot(data = all_trips_v2, aes(x = rideable_type, fill = member_casual)) + geom_bar(position = "dodge") + scale_y_continuous(labels = scales::comma) + 
+  labs(title = "Types of Rides taken by members and casual riders", 
+       x = "Type of Ride", y= "Number of trips")
+
+```
+
+```{r}
+all_trips_v2 %>% 
+  group_by(member_casual) %>% 
+  summarise(max_duration = max(ride_length)) %>%  
+  ggplot(aes(x = member_casual, y = max_duration, fill = member_casual)) + geom_col(position = "dodge") + scale_y_continuous(labels = scales::comma) +
+  labs(title = "Maximum ride length for members and casual riders", 
+       x = "Type of Riders", y = "Maximum Ride Length")
+
+```
+
+Presentation of findings thereafter.
